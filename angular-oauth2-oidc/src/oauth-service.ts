@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@angular/core';
+import { Injectable, NgZone, Optional } from "@angular/core";
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
@@ -67,6 +67,7 @@ export class OAuthService
     private inImplicitFlow = false;
 
     constructor(
+        private ngZone: NgZone,
         private http: HttpClient,
         @Optional() storage: OAuthStorage,
         @Optional() tokenValidationHandler: ValidationHandler,
@@ -264,11 +265,15 @@ export class OAuthService
         let storedAt = this.getAccessTokenStoredAt();
         let timeout = this.calcTimeout(storedAt, expiration);
 
-        this.accessTokenTimeoutSubscription =
-            Observable
-                .of(new OAuthInfoEvent('token_expires', 'access_token'))
-                .delay(timeout)
-                .subscribe(e => this.eventsSubject.next(e));
+        this.ngZone.runOutsideAngular(() => {
+            this.accessTokenTimeoutSubscription =
+                Observable
+                    .of(new OAuthInfoEvent('token_expires', 'access_token'))
+                    .delay(timeout)
+                    .subscribe(e => this.ngZone.run(() => {
+                        this.eventsSubject.next(e);
+                    }));
+        });
     }
 
 
@@ -277,11 +282,15 @@ export class OAuthService
         let storedAt = this.getIdTokenStoredAt();
         let timeout = this.calcTimeout(storedAt, expiration);
 
-        this.idTokenTimeoutSubscription =
-            Observable
-                .of(new OAuthInfoEvent('token_expires', 'id_token'))
-                .delay(timeout)
-                .subscribe(e => this.eventsSubject.next(e));
+        this.ngZone.runOutsideAngular(() => {
+            this.idTokenTimeoutSubscription =
+                Observable
+                    .of(new OAuthInfoEvent('token_expires', 'id_token'))
+                    .delay(timeout)
+                    .subscribe(e => this.ngZone.run(() => {
+                        this.eventsSubject.next(e);
+                    }));
+        });
     }
 
     private clearAccessTokenTimer(): void {
